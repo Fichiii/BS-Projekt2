@@ -3,14 +3,14 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
-#include <linux/limits.h>
-#include <bits/local_lim.h>
+#include <limits.h>
 #include <sys/wait.h>
+#include <linux/limits.h>
 
 
 //Aufgabe 1-4 bisher
 
-int main() {
+int main(void) {
 
 while (1){
 
@@ -22,8 +22,8 @@ while (1){
         exit(EXIT_FAILURE);
     }
     //Hostname kriegen
-    char hostname[HOST_NAME_MAX];
-    if(gethostname(hostname, HOST_NAME_MAX) != 0){
+    char hostname[_SC_HOST_NAME_MAX];
+    if(gethostname(hostname, _SC_HOST_NAME_MAX) != 0){
         perror("hostname Error\n");
         exit(EXIT_FAILURE);
     }
@@ -73,6 +73,8 @@ while (1){
         default:
             waitpid(pid, NULL, 0);
     }
+
+    //TODO Aufgabe 5 hier machen
 }
 
     return 0;
