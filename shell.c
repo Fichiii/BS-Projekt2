@@ -6,9 +6,9 @@
 #include <limits.h>
 #include <sys/wait.h>
 #include <linux/limits.h>
+#include <string.h>
+#include <stdbool.h>
 
-
-//Aufgabe 1-4 bisher
 
 int main(void) {
 
@@ -37,44 +37,89 @@ while (1){
     //Alle printen
     printf("%s@%s  %s\n", pw -> pw_name, hostname, buf);
 
-    //Befehl und Argument einlesen
-    char command[64];
-    char argument[64];
+    //Gaze Zeile wird eingelesen
+    char command_line[512];
     //Fehlerbehandlung
-    if(scanf("%63s %63s", command, argument) < 2){
-        printf("scanf error");
+    if(fgets(command_line, 512, stdin) == NULL){
+        printf("fgets Fehler\n");
         return -1;
     }
-    
-    while(getchar() != '\n'){} //Buffer leeren
 
-    printf("Befehl: %s\nArgument: %s\n", command, argument);
+    //cutte bis zum erstn '&&'
+    char *command_str = strtok(command_line, "&&");
 
+    while (command_str != NULL){
+        //Schreibe bis zum '&&' die strings in command und argument
+        char command[512];
+        char argument[512];
 
-    //Kindprozess erstellen
-    pid_t pid;
+        //Fehlerbehandlung
+        int num_arg = sscanf(command_str, "%s %s", command, argument);
+        
+        if(num_arg <= 0){
+            printf("sccanf error\n");
+            return -1;
+        }
 
-    pid = fork();
+        bool command_valid = false;
 
-    switch(pid){
-        //Wenn einFehler auftritt beende
-        case -1:
-            perror("fork Fehler");
-            exit(EXIT_FAILURE);
-        //Hier geht das Kindprozess rein und führt execlp aus
-        case 0:
-            if(execlp(command, command, argument, NULL) == -1){
-            perror("execlp Error");
-            exit(EXIT_FAILURE);
+        //Kindprozess erstellen
+        pid_t pid;
+
+        pid = fork();
+
+        switch(pid){
+            //Wenn einFehler auftritt beende
+            case -1:
+                perror("fork Fehler");
+                exit(EXIT_FAILURE);
+            //Hier geht das Kindprozess rein und führt execlp aus
+            case 0:
+                //Wenn nur der command ohne Argumente mitgegeben wurde
+                if(num_arg == 1){
+                    if(execlp(command, command, NULL) == -1){
+                perror("execlp Error");
+                exit(EXIT_FAILURE);
+                }
+                exit(EXIT_SUCCESS); //Wird nie passieren, da execlp nie zurückkehrt, aber -Wextra meckert
+
+                }
+                //Wenn ein Argument mitgegeben wurde
+                else{
+                if(execlp(command, command, argument, NULL) == -1){
+                perror("execlp Error");
+                exit(EXIT_FAILURE);
+                }
+                exit(EXIT_SUCCESS); //Wird nie passieren, da execlp nie zurückkehrt, aber -Wextra meckert
+                }
+                
+            //Mit waitpid auf den toten Kindprozess warten und diesen entfernen, bevor man in den nächstenDurchlauf geht
+            default:
+                int status = 0;
+
+                waitpid(pid, &status, 0);
+                
+                //Wenn Kind normal terminiert ist und von außen getötet wurde, setze command_valid auf 1
+                if(WIFEXITED(status)){
+                    int exit_status = WEXITSTATUS(status);
+                    printf("Exit status: %d\n", exit_status);
+                    
+                    if(exit_status == 0){
+                        command_valid = true;
+                    }
+                }
+
+        }
+
+        //Wenn der command geklappt hat, mache weiter, sonst brich Schleife ab
+        if(command_valid){
+                command_str = strtok(NULL, "&&");
             }
-            exit(EXIT_SUCCESS); //Wird nie passieren, da execlp nie zurückkehrt, aber -Wextra meckert
-            
-        //Mit waitpid auf den toten Kindprozess warten und diesen entfernen, bevor man in den nächstenDurchlauf geht
-        default:
-            waitpid(pid, NULL, 0);
+            else{
+                break;
+            }
     }
 
-    //TODO Aufgabe 5 hier machen
 }
 
     return 0;
